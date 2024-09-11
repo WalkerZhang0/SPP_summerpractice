@@ -1,0 +1,3 @@
+/mnt/share/share/SPP/build/CMakeFiles/SPP.dir
+/mnt/share/share/SPP/build/CMakeFiles/edit_cache.dir
+/mnt/share/share/SPP/build/CMakeFiles/rebuild_cache.dir

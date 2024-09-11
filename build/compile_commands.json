@@ -1,0 +1,17 @@
+[
+{
+  "directory": "/mnt/share/share/SPP/build",
+  "command": "/usr/bin/g++ -I/usr/include/eigen3 -g -std=gnu++11 -o CMakeFiles/SPP.dir/main.cpp.o -c /mnt/share/share/SPP/main.cpp",
+  "file": "/mnt/share/share/SPP/main.cpp"
+},
+{
+  "directory": "/mnt/share/share/SPP/build",
+  "command": "/usr/bin/g++ -I/usr/include/eigen3 -g -std=gnu++11 -o CMakeFiles/SPP.dir/src/FileHandle.cpp.o -c /mnt/share/share/SPP/src/FileHandle.cpp",
+  "file": "/mnt/share/share/SPP/src/FileHandle.cpp"
+},
+{
+  "directory": "/mnt/share/share/SPP/build",
+  "command": "/usr/bin/g++ -I/usr/include/eigen3 -g -std=gnu++11 -o CMakeFiles/SPP.dir/src/SPP_Engine.cpp.o -c /mnt/share/share/SPP/src/SPP_Engine.cpp",
+  "file": "/mnt/share/share/SPP/src/SPP_Engine.cpp"
+}
+]
