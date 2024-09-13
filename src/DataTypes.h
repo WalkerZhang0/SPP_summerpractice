@@ -94,7 +94,7 @@ typedef struct NBody {
     int hour;
     int min;
     int TOC;
- 
+
     double sec;
     double sa1;//�����Ӳ�
     double sa2;//������ƫ
