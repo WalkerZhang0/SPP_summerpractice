@@ -4,13 +4,15 @@ const int GPS_YEAR = 1980;
 const int GPS_MONTH = 1;
 const int GPS_DAY = 6;
 
-SPP_Engine::SPP_Engine(Vector3d app) {
+SPP_Engine::SPP_Engine(Vector3d app)
+{
     // state_ << 0,0,0,0; // ��ʼ����ǰ��վ����״̬Ϊ0��0��0��0
-    state_ << app[0],app[1],app[2],0.0; // ��ʼ����ǰ��վ����״̬Ϊ0��0��0��0
+    state_ << app[0], app[1], app[2], 0.0; // ��ʼ����ǰ��վ����״̬Ϊ0��0��0��0
     E = 0;
 }
 
-double SPP_Engine::UTCtoTOW(int year, int month, int day, int hour, int min, double sec) {
+double SPP_Engine::UTCtoTOW(int year, int month, int day, int hour, int min, double sec)
+{
     std::tm utc_tm = {};
     utc_tm.tm_year = year - 1900;
     utc_tm.tm_mon = month - 1;
@@ -36,27 +38,33 @@ double SPP_Engine::UTCtoTOW(int year, int month, int day, int hour, int min, dou
     return sow;
 }
 
-void SPP_Engine::CalSatPos(GNSS* gnss, NBody nbody, double sow) {
+void SPP_Engine::CalSatPos(GNSS *gnss, NBody nbody, double sow)
+{
     E = 0;
 
     double tk = gnss->sow_sat - nbody.TOE; // �黯ʱ��
-    if (tk > 302400) tk = tk - 604800;
-    else if (tk < -302400) tk = tk + 604800;
+    if (tk > 302400)
+        tk = tk - 604800;
+    else if (tk < -302400)
+        tk = tk + 604800;
 
     double n = sqrt(GM / pow(nbody.sqrtA, 6)) + nbody.deltan;
 
     double M = nbody.M0 + n * tk;
-    M > 2 * PI ? M = M - 2 * PI : (M < 0 ? M = M + 2 * PI : M = M);
+    M > 2 *PI ? M = M - 2 * PI : (M < 0 ? M = M + 2 *PI : M = M);
 
     E = M;
-    while (true) {
+    while (true)
+    {
         double temp = E;
         E = M + nbody.e * sin(temp);
-        if (abs(E - temp) < 1e-7)    break;
+        if (abs(E - temp) < 1e-7)
+            break;
     }
 
-    double f = atan2(sqrt(1 - nbody.e * nbody.e) * sin(E) , (cos(E) - nbody.e)); // -p ~ p
-    f > 2 * PI ? f = f - 2 * PI : f < -2 * PI ? f = f + 2 * PI : f = f; // right or wrong
+    double f = atan2(sqrt(1 - nbody.e * nbody.e) * sin(E), (cos(E) - nbody.e)); // -p ~ p
+    f > 2 *PI ? f = f - 2 *PI : f < -2 *PI ? f = f + 2 *PI
+                                           : f = f; // right or wrong
 
     double u_ = f + nbody.omega;
 
@@ -79,16 +87,17 @@ void SPP_Engine::CalSatPos(GNSS* gnss, NBody nbody, double sow) {
 
     tk = gnss->sow_sat - nbody.TOC;
 
-     gnss->clock_sat = nbody.sa1 + nbody.sa2 * (gnss->sow_sat - nbody.TOC) + nbody.sa3 * (gnss->sow_sat - nbody.TOC) * (gnss->sow_sat - nbody.TOC);
+    gnss->clock_sat = nbody.sa1 + nbody.sa2 * (gnss->sow_sat - nbody.TOC) + nbody.sa3 * (gnss->sow_sat - nbody.TOC) * (gnss->sow_sat - nbody.TOC);
 
-    gnss->clock_sat += F * nbody.e * nbody.sqrtA* sin(E);
+    gnss->clock_sat += F * nbody.e * nbody.sqrtA * sin(E);
 }
 
-bool SPP_Engine::CorEarth(Vector3d& position, double transtime) {
+bool SPP_Engine::CorEarth(Vector3d &position, double transtime)
+{
 
     Vector3d deltapos;
     Matrix3d cormat;
-   /* cormat << 0, ROT * transtime, 0,
+    /* cormat << 0, ROT * transtime, 0,
         -ROT * transtime, 0, 0,
         0, 0, 0;
     deltapos = cormat * position;*/
@@ -96,12 +105,13 @@ bool SPP_Engine::CorEarth(Vector3d& position, double transtime) {
     cormat << cos(ROT * transtime), sin(ROT * transtime), 0,
         -sin(ROT * transtime), cos(ROT * transtime), 0,
         0, 0, 1;
-    position = cormat * position ;
+    position = cormat * position;
 
     return true;
 }
 
-double SPP_Engine::TropSolve(OHeader oheader, const double* azel, double humi) {
+double SPP_Engine::TropSolve(OHeader oheader, const double *azel, double humi)
+{
     Vector3d pos;
     pos = oheader.appcoor;
 
@@ -117,7 +127,7 @@ double SPP_Engine::TropSolve(OHeader oheader, const double* azel, double humi) {
     double temp1 = azel[1];
     double temp2 = hh;
 
-    if (hh < -100.0|| 1E4 < hh || azel[1] <= 0) 
+    if (hh < -100.0 || 1E4 < hh || azel[1] <= 0)
         return 0.0;
 
     hgt = hh < 0.0 ? 0.0 : hh;
@@ -134,16 +144,23 @@ double SPP_Engine::TropSolve(OHeader oheader, const double* azel, double humi) {
     return trph + trpw;
 }
 
-bool SPP_Engine::CodeBiasTGD(GNSS& gnss) {
+bool SPP_Engine::CodeBiasTGD(GNSS &gnss)
+{
     double alpha = SQR(F1) / SQR(F2);
-    if (gnss.C1C > 1e-3) gnss.C1C -= gnss.tgd * C;
-    if (gnss.C2W > 1e-3) gnss.C2W -= gnss.tgd * C * alpha;
+    if (gnss.C1C > 1e-3)
+        gnss.C1C -= gnss.tgd * C;
+    if (gnss.C2W > 1e-3)
+        gnss.C2W -= gnss.tgd * C * alpha;
     return true;
 }
 
- bool SPP_Engine::lsp(MatrixXd A, Matrix4d &Q, VectorXd l, int n, Vector4d &res , MatrixXd P) {
-     VectorXd r(n);
-    if (A.rows() != n || A.cols() != 4 || l.size() != n) {return false;}
+bool SPP_Engine::lsp(MatrixXd A, Matrix4d &Q, VectorXd l, int n, Vector4d &res, MatrixXd P)
+{
+    VectorXd r(n);
+    if (A.rows() != n || A.cols() != 4 || l.size() != n)
+    {
+        return false;
+    }
     Q = (A.transpose() * P * A).inverse();
     r = A.transpose() * P * l;
     res = Q * r;
@@ -152,33 +169,41 @@ bool SPP_Engine::CodeBiasTGD(GNSS& gnss) {
     return true;
 }
 
- bool SPP_Engine::seleph(GNSS *gnss, std::vector<NBody> nbody) {
-     int tmin, tmax , t;
-     t = 0;
-     tmax = 7200 + 1;
-     tmin = tmax + 1;
+bool SPP_Engine::seleph(GNSS *gnss, std::vector<NBody> nbody)
+{
+    int tmin, tmax, t;
+    t = 0;
+    tmax = 7200 + 1;
+    tmin = tmax + 1;
 
-     for (int i = 0; i < nbody.size(); i++)
-     {
-         if (gnss_->prn != Common::prnTostring(nbody[i].PRN)) continue;
-         if ((t = abs(gnss->sow_sat - nbody[i].TOE)) > tmax) continue;
-         if (t < tmin) { gnss->eph = i; tmin = t; }
-     }
+    for (int i = 0; i < nbody.size(); i++)
+    {
+        if (gnss_->prn != Common::prnTostring(nbody[i].PRN))
+            continue;
+        if ((t = abs(gnss->sow_sat - nbody[i].TOE)) > tmax)
+            continue;
+        if (t < tmin)
+        {
+            gnss->eph = i;
+            tmin = t;
+        }
+    }
 
-     return true;
- }
+    return true;
+}
 
-bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader oheader) {
+bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader oheader)
+{
 
-    int sow = UTCtoTOW(oepoch.year,oepoch.month,oepoch.day, oepoch.hour, oepoch.min, oepoch.sec); // sec of week
-    int n = oepoch.data.size(); // number of sat
-    double var_clock = 0.0;  // var of clock
-    double var_iono = 0.0; // var of iono
-    double var_trop = 0.0, trop = 0.0; // var of trop / trop 
-    double pr = 0.0; // the 
-    double var = 0.0; // clock error
-    int count = 0; // iternation numbers
-    int j,coco;
+    int sow = UTCtoTOW(oepoch.year, oepoch.month, oepoch.day, oepoch.hour, oepoch.min, oepoch.sec); // sec of week
+    int n = oepoch.data.size();                                                                     // number of sat
+    double var_clock = 0.0;                                                                         // var of clock
+    double var_iono = 0.0;                                                                          // var of iono
+    double var_trop = 0.0, trop = 0.0;                                                              // var of trop / trop
+    double pr = 0.0;                                                                                // the
+    double var = 0.0;                                                                               // clock error
+    int count = 0;                                                                                  // iternation numbers
+    int j, coco;
 
     Matrix4d Q;
     MatrixXd A_temp = MatrixXd::Zero(n, 4);
@@ -186,62 +211,76 @@ bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader ohea
     MatrixXd P_temp = MatrixXd::Zero(n, n);
     Vector4d res;
 
-    if (oepoch.isvaild == false)  return false;
+    if (oepoch.isvaild == false)
+        return false;
 
     /* single satellite */
-    while (true) {
+    while (true)
+    {
         coco = 0;
         n = oepoch.data.size();
-        for (int i = 0; i < oepoch.data.size(); i++) {
+        for (int i = 0; i < oepoch.data.size(); i++)
+        {
             gnss_ = &oepoch.data[i];
             /* IF combination */
-            gnss_->C12 = FF1 * gnss_->C1C - FF2 * gnss_->C2W; 
+            gnss_->C12 = FF1 * gnss_->C1C - FF2 * gnss_->C2W;
+            gnss_->S12 = FF1 * gnss_->SNR1 + FF2 * gnss_->SNR2;
             double trans = gnss_->C12 / C;
             /* transmiss time */
-            gnss_->sow_sat = sow - trans; 
+            gnss_->sow_sat = sow - trans;
             /*  select eph */
-            if (!seleph(gnss_, nbody))   return false; 
+            if (!seleph(gnss_, nbody))
+                return false;
             j = gnss_->eph;
             nbody[j].TOC = UTCtoTOW(nbody[j].year, nbody[j].month, nbody[j].day, nbody[j].hour, nbody[j].min, nbody[j].sec);
             /* clock corrections */
             trans += Clock(gnss_->sow_sat, nbody[j], &var_clock);
             // gnss_->clock_sat = Clock(gnss_->sow_sat, nbody[j], &var_clock);
-            gnss_->sow_sat -= Clock(gnss_->sow_sat, nbody[j], &var_clock); 
-            double dist = 0,trans2 = 0;
+            gnss_->sow_sat -= Clock(gnss_->sow_sat, nbody[j], &var_clock);
+            double dist = 0, trans2 = 0;
             /* iterations to calculate satellite postion */
             for (int k = 0; k < 10; k++)
             {
-                if (k != 0)    
+                if (k != 0)
                     gnss_->sow_sat = sow - trans;
                 /* Calculate Satellite Postion */
                 CalSatPos(gnss_, nbody[j], sow);
-                if (!CorEarth(gnss_->pos, trans)) return false;
+                if (!CorEarth(gnss_->pos, trans))
+                    return false;
                 dist = Dist(state_, gnss_->pos);
                 trans2 = dist / C;
-                if (abs(trans2 - trans) < 1e-7)    break;
-                else trans = trans2;
+                if (abs(trans2 - trans) < 1e-7)
+                    break;
+                else
+                    trans = trans2;
             }
             gnss_->aoe = 1;
             /* calcultae azimuth and elevation */
             CalAzel(state_, gnss_);
             /* cutoff 15 */
-            if (gnss_->azel[1] < (15 * PI / 180)) {
+            if (gnss_->azel[1] < (15 * PI / 180))
+            {
                 gnss_->aoe = 0;
                 n--;
-                // continue; 
+                // continue;
             }
-            if (gnss_->aoe == 0) continue;
+            if (gnss_->aoe == 0)
+                continue;
 
             /* eliminate error of trop*/
             trop = TropSolve(oheader, gnss_->azel, 0.7);
-            // var_trop = SQR(0.3 / (sin(gnss_->azel[1]) + 0.1));   
+            // var_trop = SQR(0.3 / (sin(gnss_->azel[1]) + 0.1));
             gnss_->dist_r = Dist(state_, gnss_->pos);
             /* calculate dcm of single satellite */
             CalDCM(state_, gnss_->pos, gnss_->dist_r, gnss_);
             /* calculate the last */
-            pr = gnss_->C12 - gnss_->dist_r + C * gnss_->clock_sat - trop -state_[3];
+            pr = gnss_->C12 - gnss_->dist_r + C * gnss_->clock_sat - trop - state_[3];
             /* weight */
-            P_temp(coco, coco) = gnss_->azel[1] /(PI / 2);
+            //P_temp(coco, coco) = SQR(gnss_->S12 / 40.0); // sol 1: SNR
+            P_temp(coco, coco) = 1; // sol 2: same
+            //P_temp(coco, coco) = 1 / sin(gnss_->azel[1]); // sol 3: elevation
+            //P_temp(coco, coco) = 1 / (pr*pr); // sol 4: residuals
+            //P_temp(coco, coco) = SQR(gnss_->S12 / 40.0) / (pr*pr); // sol 5: residuals + SNR
             /* design matrix */
             for (int k = 0; k < 4; k++)
             {
@@ -250,11 +289,12 @@ bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader ohea
             l_temp[coco] = pr;
             coco++;
         }
-        MatrixXd A = A_temp.block(0,0,n,4);
-        VectorXd l = l_temp.block(0,0,n,1);
-        MatrixXd P = P_temp.block(0,0,n,n);
+        MatrixXd A = A_temp.block(0, 0, n, 4);
+        VectorXd l = l_temp.block(0, 0, n, 1);
+        MatrixXd P = P_temp.block(0, 0, n, n);
         /* lsp solve */
-        if (!lsp(A, Q, l, n, res, P)) return false;
+        if (!lsp(A, Q, l, n, res, P))
+            return false;
         count++;
         /* end judge */
         if (((res[0] < 1E-3) && (res[1] < 1E-3) && (res[2] < 1E-3)) || count == 10)
