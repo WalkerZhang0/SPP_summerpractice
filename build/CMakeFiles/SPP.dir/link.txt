@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/SPP.dir/main.cpp.o CMakeFiles/SPP.dir/src/FileHandle.cpp.o CMakeFiles/SPP.dir/src/SPP_Engine.cpp.o -o SPP 

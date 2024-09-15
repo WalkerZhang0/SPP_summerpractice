@@ -5,7 +5,7 @@ using namespace std;
 
 int main(int argc, char** argv) {
 
-    if (argc < 4) {
+    if (argc < 5) {
         cout << "Usage Error: No file input! " << endl;
         cout << "CALL FORMAT: observationfile broadcastfile outputfilepath" << endl; return 0;
     }
@@ -24,10 +24,16 @@ int main(int argc, char** argv) {
     cout << "X/m" << setw(25) << "Y/m" << setw(25) << "Z/m" << endl;
     for (int i = 0; i < aepoch.size(); i++)
     {
-        spp.SolveOne(aepoch[i], nbody, fh.oheader_);
-        cout<<fixed << setprecision(5) <<  aepoch[i].state[0] << setw(25) << aepoch[i].state[1] << setw(25) << aepoch[i].state[2] << endl;
+        try
+        {
+            spp.SolveOne(aepoch[i], nbody, fh.oheader_, stoi(argv[4]));
+            cout<<fixed << setprecision(5) <<  aepoch[i].state[0] << setw(25) << aepoch[i].state[1] << setw(25) << aepoch[i].state[2] << endl;
+        }
+        catch(const std::exception& e)
+        {
+            cout << i <<endl;
+        }
     }
-
     Vector3d res_ave;
     double x=0,y=0,z=0;
 

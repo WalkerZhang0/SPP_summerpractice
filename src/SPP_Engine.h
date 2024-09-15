@@ -33,7 +33,7 @@ public:
 
     /// @brief ���㵥��Ԫ��Ϣ
     /// @param oepoch 
-    bool SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader oheader);
+    bool SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader oheader, int weighttypes);
 
     double Dist(Vector4d pos1, Vector3d pos2) {
 

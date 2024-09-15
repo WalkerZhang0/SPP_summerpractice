@@ -144,16 +144,6 @@ double SPP_Engine::TropSolve(OHeader oheader, const double *azel, double humi)
     return trph + trpw;
 }
 
-bool SPP_Engine::CodeBiasTGD(GNSS &gnss)
-{
-    double alpha = SQR(F1) / SQR(F2);
-    if (gnss.C1C > 1e-3)
-        gnss.C1C -= gnss.tgd * C;
-    if (gnss.C2W > 1e-3)
-        gnss.C2W -= gnss.tgd * C * alpha;
-    return true;
-}
-
 bool SPP_Engine::lsp(MatrixXd A, Matrix4d &Q, VectorXd l, int n, Vector4d &res, MatrixXd P)
 {
     VectorXd r(n);
@@ -192,7 +182,7 @@ bool SPP_Engine::seleph(GNSS *gnss, std::vector<NBody> nbody)
     return true;
 }
 
-bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader oheader)
+bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader oheader, int weighttypes)
 {
 
     int sow = UTCtoTOW(oepoch.year, oepoch.month, oepoch.day, oepoch.hour, oepoch.min, oepoch.sec); // sec of week
@@ -201,9 +191,11 @@ bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader ohea
     double var_iono = 0.0;                                                                          // var of iono
     double var_trop = 0.0, trop = 0.0;                                                              // var of trop / trop
     double pr = 0.0;                                                                                // the
-    double var = 0.0;                                                                               // clock error
+    double var = 0.0;
+    double weightsum =0.0;                                                                               // clock error'
     int count = 0;                                                                                  // iternation numbers
     int j, coco;
+
 
     Matrix4d Q;
     MatrixXd A_temp = MatrixXd::Zero(n, 4);
@@ -218,13 +210,15 @@ bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader ohea
     while (true)
     {
         coco = 0;
+        weightsum  = 0;
         n = oepoch.data.size();
         for (int i = 0; i < oepoch.data.size(); i++)
         {
             gnss_ = &oepoch.data[i];
             /* IF combination */
             gnss_->C12 = FF1 * gnss_->C1C - FF2 * gnss_->C2W;
-            gnss_->S12 = FF1 * gnss_->SNR1 + FF2 * gnss_->SNR2;
+            // gnss_->S12 = FF1 * gnss_->SNR1 + FF2 * gnss_->SNR2;
+            gnss_->S12 = (gnss_->SNR1 + gnss_->SNR2)/2;
             double trans = gnss_->C12 / C;
             /* transmiss time */
             gnss_->sow_sat = sow - trans;
@@ -258,7 +252,7 @@ bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader ohea
             /* calcultae azimuth and elevation */
             CalAzel(state_, gnss_);
             /* cutoff 15 */
-            if (gnss_->azel[1] < (15 * PI / 180))
+            if (gnss_->azel[1] < (15 * PI / 180)||gnss_->S12 < 30 )
             {
                 gnss_->aoe = 0;
                 n--;
@@ -276,8 +270,24 @@ bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader ohea
             /* calculate the last */
             pr = gnss_->C12 - gnss_->dist_r + C * gnss_->clock_sat - trop - state_[3];
             /* weight */
-            //P_temp(coco, coco) = SQR(gnss_->S12 / 40.0); // sol 1: SNR
-            P_temp(coco, coco) = 1; // sol 2: same
+            switch (weighttypes)
+            {
+                case 1:
+                    P_temp(coco, coco) = 1;
+                    break;
+                case 2:
+                    P_temp(coco, coco) = SQR(gnss_->S12 / 40.0);
+                    break;
+                case 3:
+                    P_temp(coco, coco) = 1 / sin(gnss_->azel[1]); 
+                    break;
+                case 4:
+                    P_temp(coco, coco) = SQR(gnss_->S12 / 40.0) / sin(gnss_->azel[1]);
+                    break;
+            }
+            weightsum += P_temp(coco,coco);
+            // P_temp(coco, coco) = SQR(gnss_->S12 / 40.0); // sol 1: SNR
+            // P_temp(coco, coco) = 1; // sol 2: same
             //P_temp(coco, coco) = 1 / sin(gnss_->azel[1]); // sol 3: elevation
             //P_temp(coco, coco) = 1 / (pr*pr); // sol 4: residuals
             //P_temp(coco, coco) = SQR(gnss_->S12 / 40.0) / (pr*pr); // sol 5: residuals + SNR
@@ -292,6 +302,11 @@ bool SPP_Engine::SolveOne(OEpoch &oepoch, std::vector<NBody> nbody, OHeader ohea
         MatrixXd A = A_temp.block(0, 0, n, 4);
         VectorXd l = l_temp.block(0, 0, n, 1);
         MatrixXd P = P_temp.block(0, 0, n, n);
+        for (int i = 0; i < n; i++)
+        {
+            P(i,i) /= weightsum;
+        }
+        
         /* lsp solve */
         if (!lsp(A, Q, l, n, res, P))
             return false;
